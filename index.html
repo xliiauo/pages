@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Paste one prompt into your AI agent and it can fetch the live BTC-USD spot price."
+    />
+    <meta name="theme-color" content="#fcfcfa" />
+    <title>Agent BTC-USD price</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    />
+    <style>
+      :root {
+        --bg: #fcfcfa;
+        --fg: #1a1a18;
+        --muted: #6b6b66;
+        --line: #e6e6e0;
+        --card: #ffffff;
+        --accent: #1a1a18;
+        --ok: #1f7a4d;
+        --warn: #b4541a;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 64px 24px 96px;
+      }
+      .eyebrow {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 12px;
+      }
+      h1 {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0 0 12px;
+      }
+      .lede {
+        font-size: 16px;
+        color: var(--muted);
+        margin: 0 0 36px;
+        max-width: 56ch;
+      }
+      .steps {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 12px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .card-head span {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      pre {
+        margin: 0;
+        padding: 18px 16px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13.5px;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--fg);
+      }
+      button.copy {
+        font-family: "Geist", sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        color: var(--fg);
+        padding: 6px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.12s ease, border-color 0.12s ease;
+      }
+      button.copy:hover { background: #f2f2ee; }
+      button.copy.copied { color: var(--ok); border-color: var(--ok); }
+      .endpoint {
+        margin-top: 28px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .endpoint code {
+        font-family: "IBM Plex Mono", monospace;
+        background: #f2f2ee;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 2px 7px;
+        font-size: 13px;
+        color: var(--fg);
+      }
+      .live {
+        margin-top: 14px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .live b { color: var(--fg); font-weight: 600; }
+      .foot {
+        margin-top: 48px;
+        font-size: 12px;
+        color: var(--muted);
+        border-top: 1px solid var(--line);
+        padding-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <p class="eyebrow">Agent tool · BTC-USD</p>
+      <h1>Give your agent a live Bitcoin price</h1>
+      <p class="lede">
+        Copy the prompt below and paste it into any AI agent (Claude, ChatGPT,
+        Cursor, …). The agent will call the price API and report back the
+        current BTC-USD spot price.
+      </p>
+
+      <p class="steps">Step 1 — copy this</p>
+      <div class="card">
+        <div class="card-head">
+          <span>prompt</span>
+          <button class="copy" id="copyBtn">Copy</button>
+        </div>
+        <pre id="prompt"></pre>
+      </div>
+
+      <p class="endpoint">
+        Step 2 — paste into your agent. Under the hood it issues a
+        <code>GET</code> to <code id="endpoint"></code>
+      </p>
+      <p class="live" id="live">Checking the API… <span id="liveval"></span></p>
+
+      <p class="foot">
+        Returns JSON: <code style="font-family:'IBM Plex Mono',monospace">{ symbol, price, bid, ask, currency, source, timestamp }</code>.
+        Backend is the <code style="font-family:'IBM Plex Mono',monospace">cmd/agentprice</code> Go service, hosted separately.
+      </p>
+    </main>
+
+    <script>
+      // ─────────────────────────────────────────────────────────────
+      // EDIT THIS: the base URL where your Go backend (cmd/agentprice)
+      // is hosted — no trailing slash. e.g. "https://price.example.com"
+      // You can also override it at runtime with ?api=https://host
+      // for quick testing without re-deploying this page.
+      const API_BASE = "https://YOUR-BACKEND-HOST";
+      // ─────────────────────────────────────────────────────────────
+
+      const override = new URLSearchParams(window.location.search).get("api");
+      const base = (override || API_BASE).replace(/\/+$/, "");
+      const endpoint = base + "/api/price/btc-usd";
+      document.getElementById("endpoint").textContent = endpoint;
+
+      const promptText =
+        "You have access to a live BTC-USD price API. " +
+        "When I ask for the current Bitcoin price, make an HTTP GET request to:\n\n" +
+        endpoint +
+        "\n\n" +
+        "The response is JSON shaped like:\n" +
+        '{ "symbol": "BTC-USD", "price": 71427.02, "bid": 71427.01, "ask": 71427.02, ' +
+        '"currency": "USD", "source": "coinbase", "timestamp": "2026-06-01T20:05:31Z" }\n\n' +
+        "Read the \"price\" field and tell me the current BTC-USD spot price, " +
+        "noting the timestamp. Now: what is the current price of Bitcoin?";
+
+      document.getElementById("prompt").textContent = promptText;
+
+      const btn = document.getElementById("copyBtn");
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(promptText);
+        } catch {
+          // Fallback for non-secure contexts without the async clipboard API.
+          const ta = document.createElement("textarea");
+          ta.value = promptText;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+        }
+        btn.textContent = "Copied ✓";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = "Copy";
+          btn.classList.remove("copied");
+        }, 1600);
+      });
+
+      // Live confirmation that the API is reachable, right on the page.
+      (async () => {
+        const live = document.getElementById("live");
+        if (base.includes("YOUR-BACKEND-HOST")) {
+          live.style.color = "var(--warn)";
+          live.textContent =
+            "Set API_BASE in this page to your backend host (or append ?api=https://host).";
+          return;
+        }
+        try {
+          const r = await fetch(endpoint, { cache: "no-store" });
+          if (!r.ok) throw new Error("status " + r.status);
+          const d = await r.json();
+          const px = Number(d.price).toLocaleString("en-US", {
+            style: "currency",
+            currency: "USD",
+          });
+          live.innerHTML = "API live · BTC-USD = <b>" + px + "</b>";
+        } catch (e) {
+          live.textContent = "API check failed: " + e.message;
+        }
+      })();
+    </script>
+  </body>
+</html>
