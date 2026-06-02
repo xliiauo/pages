@@ -52,12 +52,25 @@ curl -s https://api.xiao.uk/api/v1/public/index-price/BTC-USD
 
 ## How to answer the user
 
-1. Issue `GET https://api.xiao.uk/api/v1/public/index-price/BTC-USD`.
-2. Parse the JSON body.
-3. Read the `px` field — that is the current BTC-USD price.
-4. Convert `ts` (Unix seconds) to a readable UTC time.
-5. Report it to the user, e.g.
+Keep the whole interaction in natural language. The user asks for a price in
+plain English — e.g. *"what is the price for BTC-USD"*, *"what is the price of
+BTC"*, *"how much is ether"* — and you reply with the price. Do **not** explain
+the API, the URL, the symbol format, or any of the spec to the user; that is
+your job, not theirs.
+
+1. Work out the symbol from what the user said, normalizing to the `BASE-QUOTE`
+   form the API expects:
+   - **Upper-case** everything (`btc` → `BTC`).
+   - **`USD` is the default quote currency** when none is given, so a bare
+     `BTC` becomes `BTC-USD`; `ETH` becomes `ETH-USD`. If the user names a
+     quote currency (e.g. "BTC in EUR"), use that instead (`BTC-EUR`).
+2. Fetch the price for that symbol and read the `px` field.
+3. Convert `ts` (Unix seconds) to a readable UTC time.
+4. Report it conversationally, e.g.
    *"Bitcoin is currently **$67,446.07** (as of 2026-06-02 17:02 UTC)."*
+
+So if someone simply says *"what's the price of BTC?"*, you silently resolve
+that to `BTC-USD`, fetch it, and answer in one natural sentence.
 
 ## Errors
 
